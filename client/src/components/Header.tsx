@@ -58,6 +58,8 @@ export default function Header() {
       ? '2.1 代理人資源聚合管理'
       : currentView === 'dashboard-realtime-generation'
         ? '2.3 即時發電量監控'
+        : currentView === 'dashboard-mvrn-allocation'
+          ? '2.4 MVRN 分配'
         : currentView === 'declaration-plan'
           ? '3. 申報計畫'
           : currentView === 'checking-daily'

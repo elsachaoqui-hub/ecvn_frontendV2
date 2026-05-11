@@ -15,6 +15,7 @@ export type AppMainView =
   | 'registration'
   | 'dashboard-agent-aggregation'
   | 'dashboard-realtime-generation'
+  | 'dashboard-mvrn-allocation'
   | 'declaration-plan'
   | 'settlement-pre'
   | 'settlement-monthly'
