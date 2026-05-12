@@ -36,6 +36,7 @@ const navModules: ModuleItem[] = [
       { id: 'dash-2-2', label: '2.2 通訊資料' },
       { id: 'dash-2-3', label: '2.3 即時發電量監控', view: 'dashboard-realtime-generation' },
       { id: 'dash-2-4', label: '2.4 MVRN 分配', view: 'dashboard-mvrn-allocation' },
+      { id: 'dash-2-4-1', label: '2.4.1 自行分配明細版', view: 'dashboard-mvrn-allocation-detail' },
     ],
   },
   {

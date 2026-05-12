@@ -9,6 +9,7 @@ import StorageModal from '@/components/StorageModal';
 import DashboardAgentAggregation from '@/components/DashboardAgentAggregation';
 import DashboardRealTimeGeneration from '@/components/DashboardRealTimeGeneration';
 import DashboardMvrnAllocationPage from '@/components/DashboardMvrnAllocationPage';
+import DashboardMvrnAllocationSelfDetailPage from '@/components/DashboardMvrnAllocationSelfDetailPage';
 import DeclarationPlanPage from '@/components/DeclarationPlanPage';
 import SettlementPreSettlementPage from '@/components/SettlementPreSettlementPage';
 import SettlementMonthlyPage from '@/components/SettlementMonthlyPage';
@@ -40,6 +41,7 @@ function MainContent() {
           {currentView === 'dashboard-agent-aggregation' && <DashboardAgentAggregation />}
           {currentView === 'dashboard-realtime-generation' && <DashboardRealTimeGeneration />}
           {currentView === 'dashboard-mvrn-allocation' && <DashboardMvrnAllocationPage />}
+          {currentView === 'dashboard-mvrn-allocation-detail' && <DashboardMvrnAllocationSelfDetailPage />}
           {currentView === 'declaration-plan' && <DeclarationPlanPage />}
           {currentView === 'checking-daily' && <DailyCheckingPage />}
           {currentView === 'checking-monthly' && <MonthlyCheckingPage />}
