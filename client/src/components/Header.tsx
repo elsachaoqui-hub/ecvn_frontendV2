@@ -72,7 +72,9 @@ export default function Header() {
                     ? '5.1 預結算'
                     : currentView === 'settlement-monthly'
                       ? '5.2 月結算'
-                      : registrationScreen === 'overview'
+                      : currentView === 'monitoring-market-dashboard'
+                        ? '6.2 市場監控儀表板'
+                        : registrationScreen === 'overview'
                         ? '註冊申請總覽'
                         : getStepTitle(step);
 

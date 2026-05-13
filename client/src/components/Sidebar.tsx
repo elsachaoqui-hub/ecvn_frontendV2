@@ -75,7 +75,7 @@ const navModules: ModuleItem[] = [
     label: '6. 監管作業',
     subItems: [
       { id: 'mon-6-1', label: '6.1 市場流程監控' },
-      { id: 'mon-6-2', label: '6.2 市場監控儀表板' },
+      { id: 'mon-6-2', label: '6.2 市場監控儀表板', view: 'monitoring-market-dashboard' },
     ],
   },
   {

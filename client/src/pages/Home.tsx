@@ -13,6 +13,7 @@ import DashboardMvrnAllocationSelfDetailPage from '@/components/DashboardMvrnAll
 import DeclarationPlanPage from '@/components/DeclarationPlanPage';
 import SettlementPreSettlementPage from '@/components/SettlementPreSettlementPage';
 import SettlementMonthlyPage from '@/components/SettlementMonthlyPage';
+import MarketMonitoringDashboardPage from '@/components/MarketMonitoringDashboardPage';
 import RegistrationOverview from '@/components/RegistrationOverview';
 import DailyCheckingPage from '@/components/DailyCheckingPage';
 import MonthlyCheckingPage from '@/components/MonthlyCheckingPage';
@@ -47,6 +48,7 @@ function MainContent() {
           {currentView === 'checking-monthly' && <MonthlyCheckingPage />}
           {currentView === 'settlement-pre' && <SettlementPreSettlementPage />}
           {currentView === 'settlement-monthly' && <SettlementMonthlyPage />}
+          {currentView === 'monitoring-market-dashboard' && <MarketMonitoringDashboardPage />}
         </main>
       </div>
 
