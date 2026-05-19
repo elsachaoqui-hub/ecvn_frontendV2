@@ -71,22 +71,70 @@ export default function MarketMonitoringDashboardPage() {
     { meterNo: '99555111222', transferKWh: 54_800, storageTransferKWh: 19_100, ratioPct: 34.9 },
   ];
 
-  const imbalanceRows = [
+  /** 市場觀點：僅「未兌現市場承諾」計入不平衡；合約轉供量＝賣方供給承諾／買方需求承諾 */
+  type MarketImbalanceRow = {
+    slot: string;
+    role: '賣方' | '買方';
+    agentId: number;
+    commitmentMWh: number;
+    settledMWh: number;
+    settledLabel: '結算發電量' | '結算用電量';
+    imbalanceMWh: number | null;
+    hasObligation: boolean;
+    note: string;
+  };
+
+  const marketImbalanceRows: MarketImbalanceRow[] = [
     {
       slot: '2026-05 峰段',
-      predMWh: 420.0,
+      role: '賣方',
+      agentId: 1,
+      commitmentMWh: 420.0,
       settledMWh: 401.5,
+      settledLabel: '結算發電量',
       imbalanceMWh: 18.5,
-      note: '預測高於結算，正不平衡（後續納入預測準確度動態檢核）',
+      hasObligation: true,
+      note: '結算發電量＜合約轉供量，缺額賣量，具平衡義務（納入預測準確度動態檢核）',
+    },
+    {
+      slot: '2026-05 峰段',
+      role: '買方',
+      agentId: 2,
+      commitmentMWh: 380.0,
+      settledMWh: 365.2,
+      settledLabel: '結算用電量',
+      imbalanceMWh: null,
+      hasObligation: false,
+      note: '結算用電量＜合約轉供量，實際用得比市場承諾少，無平衡義務',
     },
     {
       slot: '2026-05 離峰',
-      predMWh: 310.0,
-      settledMWh: 318.2,
-      imbalanceMWh: -8.2,
-      note: '預測低於結算，負不平衡',
+      role: '賣方',
+      agentId: 2,
+      commitmentMWh: 310.0,
+      settledMWh: 338.4,
+      settledLabel: '結算發電量',
+      imbalanceMWh: null,
+      hasObligation: false,
+      note: '結算發電量＞合約轉供量，超額賣量屬場外餘電／躉購範圍，無平衡義務',
+    },
+    {
+      slot: '2026-05 離峰',
+      role: '買方',
+      agentId: 1,
+      commitmentMWh: 310.0,
+      settledMWh: 326.8,
+      settledLabel: '結算用電量',
+      imbalanceMWh: 16.8,
+      hasObligation: true,
+      note: '結算用電量＞合約轉供量，超額買量，具平衡義務（納入預測準確度動態檢核）',
     },
   ];
+
+  const penalizableImbalanceMWh = marketImbalanceRows.reduce(
+    (sum, r) => sum + (r.imbalanceMWh ?? 0),
+    0,
+  );
 
   const sectionShell = 'rounded-2xl border border-slate-300 bg-white p-5 shadow-sm';
   const thRow = 'bg-slate-100 text-slate-700 text-xs font-bold';
@@ -232,7 +280,7 @@ export default function MarketMonitoringDashboardPage() {
         <div className="border-b border-slate-200 pb-4">
           <h3 className="text-lg font-bold text-slate-900">四、結算監控</h3>
           <p className="mt-2 max-w-3xl text-sm font-semibold text-slate-600">
-            異常分析報表與效益產出報表並列：前者追蹤移轉失效與結算扣除；後者呈現儲能移轉效益與不平衡成本分析（作為預測準確度動態檢核獎懲依據）。
+            異常分析報表與效益產出報表並列：前者追蹤移轉失效與結算扣除；後者呈現儲能移轉效益與市場觀點下之不平衡電量報告（作為預測準確度動態檢核獎懲依據）。
           </p>
         </div>
 
@@ -297,33 +345,60 @@ export default function MarketMonitoringDashboardPage() {
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-sm font-bold text-slate-900">（2）不平衡成本分析</p>
+                <p className="text-sm font-bold text-slate-900">（2）不平衡電量報告（市場觀點）</p>
                 <p className="mt-1 text-xs font-semibold text-slate-600">
-                  比對「預測發用電量」與「結算發用電量」，產出不平衡電量報告，供後續預測準確度動態檢核之獎懲依據。
+                  僅針對「未兌現市場承諾」計入不平衡：合約轉供量即賣方供給承諾與買方需求承諾；賣方僅在結算發電量＜合約轉供量（缺額賣量）、買方僅在結算用電量＞合約轉供量（超額買量）時具平衡義務，供預測準確度動態檢核獎懲。
                 </p>
+                <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/80 px-3 py-2 text-xs font-semibold text-indigo-950">
+                  <span className="font-black">市場觀點摘要：</span>
+                  賣方超額供電、買方少於承諾用電，於市場結算上均視為無平衡義務；本表「可計罰不平衡電量」合計{' '}
+                  <span className="font-black tabular-nums">{penalizableImbalanceMWh.toFixed(1)}</span> MWh。
+                </div>
                 <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                  <table className="min-w-[560px] w-full">
+                  <table className="min-w-[880px] w-full">
                     <thead className={thRow}>
                       <tr>
                         <th className="px-3 py-2 text-left">區間</th>
-                        <th className="px-3 py-2 text-right">預測發用電量（MWh）</th>
-                        <th className="px-3 py-2 text-right">結算發用電量（MWh）</th>
-                        <th className="px-3 py-2 text-right">不平衡電量（MWh）</th>
+                        <th className="px-3 py-2 text-left">角色</th>
+                        <th className="px-3 py-2 text-left">代理人</th>
+                        <th className="px-3 py-2 text-right">合約轉供量（MWh）</th>
+                        <th className="px-3 py-2 text-right">結算量（MWh）</th>
+                        <th className="px-3 py-2 text-center">平衡義務</th>
+                        <th className="px-3 py-2 text-right">可計罰不平衡電量（MWh）</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {imbalanceRows.map((r) => (
-                        <tr key={r.slot} className="font-semibold">
+                      {marketImbalanceRows.map((r, i) => (
+                        <tr key={`imb-${i}`} className="font-semibold">
                           <td className={td}>{r.slot}</td>
-                          <td className={`${td} text-right tabular-nums`}>{r.predMWh.toFixed(1)}</td>
-                          <td className={`${td} text-right tabular-nums`}>{r.settledMWh.toFixed(1)}</td>
+                          <td className={td}>
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-xs font-black ${
+                                r.role === '賣方' ? 'bg-sky-100 text-sky-900' : 'bg-violet-100 text-violet-900'
+                              }`}
+                            >
+                              {r.role}
+                            </span>
+                          </td>
+                          <td className={td}>{agentName(r.agentId)}</td>
+                          <td className={`${td} text-right tabular-nums`}>{r.commitmentMWh.toFixed(1)}</td>
+                          <td className={`${td} text-right tabular-nums`}>
+                            <span className="block text-[10px] font-bold text-slate-500">{r.settledLabel}</span>
+                            {r.settledMWh.toFixed(1)}
+                          </td>
+                          <td className={`${td} text-center`}>
+                            {r.hasObligation ? (
+                              <span className="text-xs font-black text-rose-800">有</span>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-500">無</span>
+                            )}
+                          </td>
                           <td
                             className={`${td} text-right tabular-nums ${
-                              r.imbalanceMWh >= 0 ? 'text-amber-800' : 'text-sky-800'
+                              r.imbalanceMWh != null ? 'font-black text-rose-800' : 'text-slate-400'
                             }`}
                           >
-                            {r.imbalanceMWh >= 0 ? '+' : ''}
-                            {r.imbalanceMWh.toFixed(1)}
+                            {r.imbalanceMWh != null ? r.imbalanceMWh.toFixed(1) : '—'}
                           </td>
                         </tr>
                       ))}
@@ -331,9 +406,12 @@ export default function MarketMonitoringDashboardPage() {
                   </table>
                 </div>
                 <ul className="mt-2 space-y-1 text-xs font-semibold text-slate-600">
-                  {imbalanceRows.map((r) => (
-                    <li key={`${r.slot}-note`}>
-                      <span className="font-black text-slate-700">{r.slot}</span>：{r.note}
+                  {marketImbalanceRows.map((r, i) => (
+                    <li key={`imb-note-${i}`}>
+                      <span className="font-black text-slate-700">
+                        {r.slot} · {r.role}
+                      </span>
+                      ：{r.note}
                     </li>
                   ))}
                 </ul>

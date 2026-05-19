@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { toast } from 'sonner';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -23,6 +20,14 @@ const SLOT_COUNT = 96;
 
 const DISCLAIMER =
   '不論採行彈性分配或儲能電能移轉，其分配順序與額度均屬用戶自主管理範疇。若分配後仍有剩餘電量，該損失應由用戶自行承擔；本平台僅負責依據實測數據進行電量核算，不負擔剩餘電量之處置或補償責任。';
+
+/** 與 5.2 月結算一致的白底區塊樣式 */
+const sectionShell = 'rounded-2xl border border-slate-300 bg-white p-5 shadow-sm';
+const panelShell = 'rounded-xl border border-slate-200 bg-white p-4';
+const btnPrimary =
+  'rounded-lg border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700';
+const btnOutline =
+  'rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50';
 
 type MeterId = 'A' | 'B';
 
@@ -298,23 +303,23 @@ function WorkbenchSection({
   }, [allocation]);
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100 bg-white">
-        <CardTitle className="text-lg text-slate-800">{title}</CardTitle>
-        <CardDescription className="text-slate-600">{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        <div className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+    <section className={sectionShell}>
+      <div>
+        <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+        <p className="mt-2 text-sm font-semibold text-slate-600 leading-relaxed">{description}</p>
+      </div>
+      <div className="mt-5 space-y-6">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm text-amber-950">
           <p className="font-bold text-amber-900 mb-1">
             <i className="fas fa-triangle-exclamation mr-2" />
             分配注意事項
           </p>
-          <p className="leading-relaxed">{DISCLAIMER}</p>
+          <p className="leading-relaxed font-semibold">{DISCLAIMER}</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-            <h3 className="text-sm font-bold text-slate-800">參數設定區</h3>
+          <div className={`space-y-4 ${panelShell}`}>
+            <h3 className="text-sm font-black text-slate-900">參數設定區</h3>
             <div className="space-y-3">
               <Label className="text-slate-700">分配模式</Label>
               <RadioGroup
@@ -391,17 +396,17 @@ function WorkbenchSection({
             )}
 
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button type="button" className="bg-blue-600 hover:bg-blue-700" onClick={onTrial}>
+              <button type="button" className={btnPrimary} onClick={onTrial}>
                 <i className="fas fa-calculator mr-2" />
                 試算分配
-              </Button>
-              <Button type="button" variant="outline" onClick={onSaveDraft}>
+              </button>
+              <button type="button" className={btnOutline} onClick={onSaveDraft}>
                 <i className="fas fa-floppy-disk mr-2" />
                 儲存暫存
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                variant={manualEdit ? 'secondary' : 'outline'}
+                className={manualEdit ? `${btnPrimary} bg-slate-600 border-slate-600` : btnOutline}
                 onClick={() => {
                   if (!manualEdit) {
                     setAllocation(computeTrial());
@@ -411,7 +416,7 @@ function WorkbenchSection({
               >
                 <i className={`fas ${manualEdit ? 'fa-lock-open' : 'fa-pen-to-square'} mr-2`} />
                 {manualEdit ? '結束人工修改' : '進入人工修改（15 分鐘明細）'}
-              </Button>
+              </button>
             </div>
             {draftSavedAt ? (
               <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">
@@ -422,38 +427,38 @@ function WorkbenchSection({
             )}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="text-sm font-bold text-slate-800">試算結果彙總（全日）</h3>
+          <div className={`space-y-3 ${panelShell}`}>
+            <h3 className="text-sm font-black text-slate-900">試算結果彙總（全日）</h3>
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
-              <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
-                <div className="text-xs text-slate-500">A 電號</div>
-                <div className="text-lg font-black text-slate-800">{summary.sumA} kWh</div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs font-bold text-slate-500">A 電號</p>
+                <p className="mt-1 text-lg font-black text-slate-800">{summary.sumA} kWh</p>
               </div>
-              <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
-                <div className="text-xs text-slate-500">B 電號</div>
-                <div className="text-lg font-black text-slate-800">{summary.sumB} kWh</div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs font-bold text-slate-500">B 電號</p>
+                <p className="mt-1 text-lg font-black text-slate-800">{summary.sumB} kWh</p>
               </div>
-              <div className="rounded-lg bg-blue-50 p-3 border border-blue-100">
-                <div className="text-xs text-blue-700">合計</div>
-                <div className="text-lg font-black text-blue-900">{summary.sum} kWh</div>
+              <div className="rounded-lg border border-slate-300 bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-600">合計</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{summary.sum} kWh</p>
               </div>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
               數據來源示意：轉直供系統之每 15 分鐘結算發電／用電、調節帳戶 C 移轉成功量；正式環境由後端介接與核算。
             </p>
           </div>
         </div>
 
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800">每 15 分鐘分配明細</h3>
+        <div className={panelShell}>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-black text-slate-900">每 15 分鐘分配明細</h3>
             {manualEdit ? (
               <Badge className="bg-amber-500 text-white">人工修改中</Badge>
             ) : (
               <Badge variant="secondary">唯讀</Badge>
             )}
           </div>
-          <ScrollArea className="h-[min(420px,50vh)] rounded-md border border-slate-200">
+          <ScrollArea className="h-[min(420px,50vh)] rounded-lg border border-slate-200 bg-white">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-100">
@@ -461,8 +466,8 @@ function WorkbenchSection({
                   <TableHead className="text-right font-bold text-slate-700">供給潛力</TableHead>
                   <TableHead className="text-right font-bold text-slate-700">A 負載</TableHead>
                   <TableHead className="text-right font-bold text-slate-700">B 負載</TableHead>
-                  <TableHead className="text-right font-bold text-blue-800">A 分配</TableHead>
-                  <TableHead className="text-right font-bold text-blue-800">B 分配</TableHead>
+                  <TableHead className="text-right font-bold text-slate-800">A 分配</TableHead>
+                  <TableHead className="text-right font-bold text-slate-800">B 分配</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -500,8 +505,8 @@ function WorkbenchSection({
             </Table>
           </ScrollArea>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -563,50 +568,65 @@ export default function DashboardMvrnAllocationPage() {
     new Date().toLocaleString('zh-TW', { hour12: false, dateStyle: 'short', timeStyle: 'short' });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">2.4 MVRN 分配</h1>
-        <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+    <div className="space-y-6 pb-8 text-slate-800 max-w-7xl mx-auto">
+      <section className={sectionShell}>
+        <h3 className="text-lg font-bold text-slate-900">2.5 MVRN 分配</h3>
+        <p className="mt-2 max-w-4xl text-sm font-semibold text-slate-600 leading-relaxed">
           跨市場協作結算與合規檢核：介接轉直供系統之每 15 分鐘發／用電結算量，併入調節帳戶 C 儲能移轉成功量後，由代理人設定彈性分配與儲能移轉策略、試算並暫存，最後送出執行自動化檢核。
         </p>
-      </div>
+      </section>
 
-      <Alert className="border-blue-200 bg-blue-50/80 text-slate-900">
-        <i className="fas fa-circle-info text-blue-600" />
-        <AlertTitle className="text-blue-900">流程說明</AlertTitle>
-        <AlertDescription className="text-slate-700 leading-relaxed">
+      <section className={sectionShell}>
+        <h3 className="text-sm font-black text-slate-900">
+          <i className="fas fa-circle-info mr-2 text-slate-600" />
+          流程說明
+        </h3>
+        <p className="mt-3 text-sm font-semibold text-slate-600 leading-relaxed">
           請先於「彈性分配」與「電能移轉」分頁完成參數設定、試算與暫存；再於「送出與自動檢核」合併檢核兩份暫存結果。若出現不合規則之處，請回到前兩頁以人工修改模式細修每 15
           分鐘分配量，直至檢核通過。
-        </AlertDescription>
-      </Alert>
+        </p>
+      </section>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="pt-6 flex flex-wrap gap-4 items-end">
+      <section className={sectionShell}>
+        <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <Label className="text-xs text-slate-600">結算日（示意）</Label>
+            <Label className="text-xs font-bold text-slate-600">結算日（示意）</Label>
             <Input
               type="date"
               value={settlementDate}
               onChange={(e) => setSettlementDate(e.target.value)}
-              className="mt-1 w-44 bg-white"
+              className="mt-1 w-44 border-slate-300 bg-white"
             />
           </div>
           <div>
-            <Label className="text-xs text-slate-600">計畫群組</Label>
-            <Input value={planGroup} onChange={(e) => setPlanGroup(e.target.value)} className="mt-1 w-48 bg-white" />
+            <Label className="text-xs font-bold text-slate-600">計畫群組</Label>
+            <Input
+              value={planGroup}
+              onChange={(e) => setPlanGroup(e.target.value)}
+              className="mt-1 w-48 border-slate-300 bg-white"
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <Tabs defaultValue="elastic" className="w-full gap-4">
-        <TabsList className="grid w-full max-w-3xl grid-cols-3 bg-slate-200/80 p-1 h-auto">
-          <TabsTrigger value="elastic" className="py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        <TabsList className="grid h-auto w-full max-w-3xl grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
+          <TabsTrigger
+            value="elastic"
+            className="rounded-lg py-2.5 text-sm font-bold data-[state=active]:border data-[state=active]:border-slate-300 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             彈性分配作業
           </TabsTrigger>
-          <TabsTrigger value="transfer" className="py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger
+            value="transfer"
+            className="rounded-lg py-2.5 text-sm font-bold data-[state=active]:border data-[state=active]:border-slate-300 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             電能移轉作業
           </TabsTrigger>
-          <TabsTrigger value="submit" className="py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger
+            value="submit"
+            className="rounded-lg py-2.5 text-sm font-bold data-[state=active]:border data-[state=active]:border-slate-300 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             送出與自動檢核
           </TabsTrigger>
         </TabsList>
@@ -676,111 +696,100 @@ export default function DashboardMvrnAllocationPage() {
         </TabsContent>
 
         <TabsContent value="submit" className="mt-4 space-y-4">
-          <Card className="border-slate-200 shadow-sm border-l-4 border-l-blue-500">
-            <CardHeader>
-              <CardTitle className="text-lg text-slate-800">合併送出與自動化檢核</CardTitle>
-              <CardDescription>
-                將彈性分配與電能移轉兩份暫存結果一併送檢。系統依每 15 分鐘結算時段執行規則一（物理產量限制）與規則二（累積轉供、殘載填充／面積檢核）。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-                <p className="font-bold text-amber-900 mb-1">分配注意事項（再次確認）</p>
-                <p className="leading-relaxed">{DISCLAIMER}</p>
+          <section className={`${sectionShell} border-l-4 border-l-slate-400`}>
+            <h4 className="text-base font-bold text-slate-900">合併送出與自動化檢核</h4>
+            <p className="mt-2 text-sm font-semibold text-slate-600">
+              將彈性分配與電能移轉兩份暫存結果一併送檢。系統依每 15 分鐘結算時段執行規則一（物理產量限制）與規則二（累積轉供、殘載填充／面積檢核）。
+            </p>
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              <span className="font-bold">再次確認：</span>
+              {DISCLAIMER}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="text-sm font-semibold text-slate-700">
+                彈性分配：
+                {elasticDraftAt ? (
+                  <Badge className="ml-2 bg-emerald-600 text-white">已暫存 {elasticDraftAt}</Badge>
+                ) : (
+                  <Badge variant="destructive">尚未暫存</Badge>
+                )}
               </div>
-
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="text-sm text-slate-600">
-                  <span className="font-bold text-slate-800">彈性分配：</span>
-                  {elasticDraftAt ? (
-                    <Badge className="ml-1 bg-emerald-600">已暫存 {elasticDraftAt}</Badge>
-                  ) : (
-                    <Badge variant="destructive">尚未暫存</Badge>
-                  )}
-                </div>
-                <div className="text-sm text-slate-600">
-                  <span className="font-bold text-slate-800">電能移轉：</span>
-                  {transferDraftAt ? (
-                    <Badge className="ml-1 bg-emerald-600">已暫存 {transferDraftAt}</Badge>
-                  ) : (
-                    <Badge variant="destructive">尚未暫存</Badge>
-                  )}
-                </div>
+              <div className="text-sm font-semibold text-slate-700">
+                電能移轉：
+                {transferDraftAt ? (
+                  <Badge className="ml-2 bg-emerald-600 text-white">已暫存 {transferDraftAt}</Badge>
+                ) : (
+                  <Badge variant="destructive">尚未暫存</Badge>
+                )}
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={runSubmitValidation}
-                  disabled={!elasticDraftAt || !transferDraftAt}
-                >
-                  <i className="fas fa-paper-plane mr-2" />
-                  送出兩份暫存並執行檢核
-                </Button>
-                {!elasticDraftAt || !transferDraftAt ? (
-                  <p className="text-xs text-slate-500 self-center">請先於前兩頁各完成一次「儲存暫存」後再送出。</p>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                className={`${btnPrimary} disabled:cursor-not-allowed disabled:opacity-50`}
+                onClick={runSubmitValidation}
+                disabled={!elasticDraftAt || !transferDraftAt}
+              >
+                <i className="fas fa-paper-plane mr-2" />
+                送出兩份暫存並執行檢核
+              </button>
+              {!elasticDraftAt || !transferDraftAt ? (
+                <p className="mt-2 text-xs font-semibold text-slate-500">請先於前兩頁各完成一次「儲存暫存」後再送出。</p>
+              ) : null}
+            </div>
+          </section>
 
           {validationIssues !== null && (
-            <Card
-              className={`border shadow-sm ${validationIssues.length === 0 ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/30'}`}
+            <section
+              className={`${sectionShell} ${
+                validationIssues.length === 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/40'
+              }`}
             >
-              <CardHeader>
-                <CardTitle className={`text-lg ${validationIssues.length === 0 ? 'text-emerald-900' : 'text-red-900'}`}>
-                  {validationIssues.length === 0 ? (
-                    <>
-                      <i className="fas fa-circle-check mr-2" />
-                      檢核結果：全部通過
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-circle-xmark mr-2" />
-                      檢核結果：待修正（{validationIssues.length} 筆）
-                    </>
-                  )}
-                </CardTitle>
-                <CardDescription className="text-slate-700">
-                  {validationIssues.length > 0
-                    ? '請依下列明細修正後，回到「彈性分配作業」或「電能移轉作業」調整參數或進入人工修改模式細修該時段之分配量。'
-                    : '可進行後續正式送件流程（實際由後端 API 銜接）。'}
-                </CardDescription>
-              </CardHeader>
+              <h4 className={`text-base font-bold ${validationIssues.length === 0 ? 'text-emerald-900' : 'text-red-900'}`}>
+                {validationIssues.length === 0 ? (
+                  <>
+                    <i className="fas fa-circle-check mr-2" />
+                    檢核結果：全部通過
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-circle-xmark mr-2" />
+                    檢核結果：待修正（{validationIssues.length} 筆）
+                  </>
+                )}
+              </h4>
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                {validationIssues.length > 0
+                  ? '請依下列明細修正後，回到「彈性分配作業」或「電能移轉作業」調整參數或進入人工修改模式細修該時段之分配量。'
+                  : '可進行後續正式送件流程（實際由後端 API 銜接）。'}
+              </p>
               {validationIssues.length > 0 && (
-                <CardContent>
-                  <ScrollArea className="h-[min(360px,45vh)] pr-3">
-                    <ul className="space-y-3">
-                      {validationIssues.map((issue) => (
-                        <li
-                          key={issue.id}
-                          className="rounded-lg border border-red-200 bg-white p-4 text-sm shadow-sm"
-                        >
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <Badge variant="destructive" className="font-mono">
-                              {issue.rule}
+                <ScrollArea className="mt-3 h-[min(360px,45vh)] rounded-lg border border-slate-200 bg-white pr-3">
+                  <ul className="space-y-2 p-3">
+                    {validationIssues.map((issue) => (
+                      <li key={issue.id} className="rounded-lg border border-red-200 bg-white p-3 text-sm shadow-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="destructive" className="font-mono">
+                            {issue.rule}
+                          </Badge>
+                          <span className="font-bold text-slate-900">{issue.ruleTitle}</span>
+                          {issue.meter ? (
+                            <Badge variant="outline" className="border-slate-300">
+                              電號 {issue.meter}
                             </Badge>
-                            <span className="font-bold text-slate-900">{issue.ruleTitle}</span>
-                            {issue.meter ? (
-                              <Badge variant="outline" className="border-slate-300">
-                                電號 {issue.meter}
-                              </Badge>
-                            ) : null}
-                            <Badge variant="secondary" className="font-mono">
-                              {slotLabel(issue.slot)}
-                            </Badge>
-                          </div>
-                          <p className="font-semibold text-red-900">{issue.message}</p>
-                          <p className="mt-2 text-slate-700 leading-relaxed">{issue.detail}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </ScrollArea>
-                </CardContent>
+                          ) : null}
+                          <Badge variant="secondary" className="font-mono">
+                            {slotLabel(issue.slot)}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 font-semibold text-red-900">{issue.message}</p>
+                        <p className="mt-1 text-slate-700 leading-relaxed">{issue.detail}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
               )}
-            </Card>
+            </section>
           )}
         </TabsContent>
       </Tabs>

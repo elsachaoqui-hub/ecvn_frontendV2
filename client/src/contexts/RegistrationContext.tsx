@@ -14,6 +14,7 @@ export type PlanSection =
 export type AppMainView =
   | 'registration'
   | 'dashboard-agent-aggregation'
+  | 'dashboard-realtime-ami-power'
   | 'dashboard-realtime-generation'
   | 'dashboard-mvrn-allocation'
   | 'dashboard-mvrn-allocation-detail'

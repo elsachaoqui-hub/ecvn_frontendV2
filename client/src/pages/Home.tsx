@@ -7,6 +7,7 @@ import Step3Storages from '@/components/Step3Storages';
 import ContractModal from '@/components/ContractModal';
 import StorageModal from '@/components/StorageModal';
 import DashboardAgentAggregation from '@/components/DashboardAgentAggregation';
+import DashboardRealTimeAmiPower from '@/components/DashboardRealTimeAmiPower';
 import DashboardRealTimeGeneration from '@/components/DashboardRealTimeGeneration';
 import DashboardMvrnAllocationPage from '@/components/DashboardMvrnAllocationPage';
 import DashboardMvrnAllocationSelfDetailPage from '@/components/DashboardMvrnAllocationSelfDetailPage';
@@ -40,6 +41,7 @@ function MainContent() {
             </>
           )}
           {currentView === 'dashboard-agent-aggregation' && <DashboardAgentAggregation />}
+          {currentView === 'dashboard-realtime-ami-power' && <DashboardRealTimeAmiPower />}
           {currentView === 'dashboard-realtime-generation' && <DashboardRealTimeGeneration />}
           {currentView === 'dashboard-mvrn-allocation' && <DashboardMvrnAllocationPage />}
           {currentView === 'dashboard-mvrn-allocation-detail' && <DashboardMvrnAllocationSelfDetailPage />}

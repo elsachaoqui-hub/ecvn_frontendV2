@@ -640,7 +640,7 @@ export default function DashboardMvrnAllocationSelfDetailPage() {
       <section className={sectionShell}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">2.4.1 自行分配明細版</h3>
+            <h3 className="text-lg font-bold text-slate-900">2.5.1 自行分配明細版</h3>
             <p className="mt-2 max-w-4xl text-sm font-semibold text-slate-600 leading-relaxed">
               計畫群組可含大量發電電號與負載電號。請以檔案上傳「彈性分配」與「電能移轉」之自行分配明細（發電→負載／移轉→負載），上傳成功即暫存；再於「送出與自動檢核」執行合併檢核。
             </p>
