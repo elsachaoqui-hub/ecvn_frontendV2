@@ -14,12 +14,12 @@ import { amiLabels as L } from '@/lib/amiPowerLabels';
 import {
   AMI_LAG_HOURS,
   buildDailySeries,
+  buildHistoryCsvRows,
   buildIngestionStatus,
   buildMeterDetail,
   downloadCsv,
   formatClock,
   formatDateTime,
-  hashToUnit,
   isWeekend,
   parseLocalDate,
   toLocalDateInputValue,
@@ -30,6 +30,10 @@ import {
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { useMemo, useState } from 'react';
+
+import type { Agent } from '@/data/agentAggregation';
+
+const ALL_AGENTS_ID = '__all__';
 
 function buildDailyChartOption(
   title: string,
@@ -51,14 +55,21 @@ function buildDailyChartOption(
           seriesName?: string;
           value?: number | null | string;
           axisValue?: string;
+          dataIndex?: number;
         }[];
         const axis = list[0]?.axisValue ?? '';
+        const idx = list[0]?.dataIndex ?? 0;
+        const pt = points[idx];
+        const coverage =
+          pt && pt.meterTotal > 0
+            ? `<br/>${L.chartPartial}: ${pt.metersInSystem}/${pt.meterTotal}`
+            : '';
         const lines = list.map((p) => {
           const v = p.value;
           const text = v === null || v === undefined || v === '-' ? L.chartNotIn : `${Number(v).toFixed(1)} kWh`;
           return `${p.seriesName}: ${text}`;
         });
-        return [axis, ...lines].join('<br/>');
+        return [axis, ...lines, coverage].filter(Boolean).join('<br/>');
       },
     },
     legend: { top: 8, right: 8, textStyle: { fontSize: 11 } },
@@ -116,12 +127,14 @@ function MeterTable({
   meters,
   kind,
   isViewingToday,
+  showAgentColumn,
 }: {
   title: string;
   subtitle: string;
   meters: MeterDetail[];
   kind: MeterKind;
   isViewingToday: boolean;
+  showAgentColumn?: boolean;
 }) {
   const totalKwh = meters.reduce((s, m) => s + m.systemKwh, 0);
   const roundedTotal = Math.round(totalKwh * 10) / 10;
@@ -151,22 +164,28 @@ function MeterTable({
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-100 text-slate-600">
             <tr>
+              {showAgentColumn ? <th className="px-4 py-3">{L.colAgent}</th> : null}
               <th className="px-4 py-3">{L.colMeter}</th>
               <th className="px-4 py-3">{L.colKwh}</th>
-              <th className="px-4 py-3">{L.colTime}</th>
+              <th className="px-4 py-3">{L.colInterval}</th>
+              <th className="px-4 py-3">{L.colIngest}</th>
               <th className="px-4 py-3">{L.colLag}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {meters.map((m) => (
-              <tr key={m.meterNo} className="hover:bg-slate-50">
+              <tr key={m.rowKey} className="hover:bg-slate-50">
+                {showAgentColumn ? (
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-700">{m.agentName ?? '?'}</td>
+                ) : null}
                 <td className="px-4 py-3">
                   <p className="font-bold text-slate-900">{m.meterNo}</p>
                   <p className="text-slate-600">{m.siteName}</p>
                   <p className="text-xs text-slate-400">{m.extra}</p>
                 </td>
                 <td className="px-4 py-3 font-semibold text-slate-900">{m.systemKwh} kWh</td>
-                <td className="px-4 py-3 text-slate-600">{formatDateTime(m.systemLastAt)}</td>
+                <td className="px-4 py-3 font-mono font-bold text-slate-800">{m.intervalLabel}</td>
+                <td className="px-4 py-3 text-slate-600">{formatDateTime(m.ingestedAt)}</td>
                 <td className="px-4 py-3">
                   {m.lagHours !== null ? (
                     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800">
@@ -180,7 +199,7 @@ function MeterTable({
             ))}
             {meters.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={showAgentColumn ? 6 : 5} className="px-4 py-8 text-center text-slate-500">
                   {L.noMeter}
                   {emptyLabel}
                   {L.noMeterSuffix}
@@ -193,7 +212,8 @@ function MeterTable({
               <tr>
                 <td className="px-4 py-3 font-bold text-slate-900">{L.total}</td>
                 <td className="px-4 py-3 font-bold text-slate-900">{roundedTotal} kWh</td>
-                <td className="px-4 py-3 text-xs text-slate-500" colSpan={2}>
+                {showAgentColumn ? <td className="px-4 py-3" /> : null}
+                <td className="px-4 py-3 text-xs text-slate-500" colSpan={3}>
                   {isViewingToday ? L.footToday : L.footHistory}
                 </td>
               </tr>
@@ -215,25 +235,63 @@ export default function DashboardRealTimeAmiPower() {
   const [refreshSeq, setRefreshSeq] = useState(0);
 
   const isViewingToday = viewDate === todayStr;
+  const isAllAgents = selectedAgentId === ALL_AGENTS_ID;
 
-  const selectedAgent = useMemo(
-    () => agents.find((a) => String(a.id) === selectedAgentId) ?? agents[0],
-    [agents, selectedAgentId]
-  );
+  const viewScope = useMemo((): Agent | null => {
+    if (agents.length === 0) return null;
+    if (isAllAgents) {
+      return {
+        id: 0,
+        name: L.allAgents,
+        taxId: '',
+        registrationType: '',
+        genCap: 0,
+        loadCap: 0,
+        storageCap: 0,
+        genMeters: 0,
+        loadMeters: 0,
+        bessCount: 0,
+        genList: agents.flatMap((a) => a.genList),
+        loadList: agents.flatMap((a) => a.loadList),
+        storageList: [],
+      };
+    }
+    return agents.find((a) => String(a.id) === selectedAgentId) ?? agents[0];
+  }, [agents, selectedAgentId, isAllAgents]);
 
   const genMeters = useMemo(() => {
-    if (!selectedAgent) return [];
-    return selectedAgent.genList.map((a) =>
+    if (isAllAgents) {
+      return agents.flatMap((agent) =>
+        agent.genList.map((a) =>
+          buildMeterDetail(a, 'generation', viewDate, isViewingToday, lastUpdated, refreshSeq, {
+            agentId: agent.id,
+            agentName: agent.name,
+          })
+        )
+      );
+    }
+    if (!viewScope) return [];
+    return viewScope.genList.map((a) =>
       buildMeterDetail(a, 'generation', viewDate, isViewingToday, lastUpdated, refreshSeq)
     );
-  }, [selectedAgent, viewDate, isViewingToday, lastUpdated, refreshSeq]);
+  }, [agents, viewScope, isAllAgents, viewDate, isViewingToday, lastUpdated, refreshSeq]);
 
   const loadMeters = useMemo(() => {
-    if (!selectedAgent) return [];
-    return selectedAgent.loadList.map((a) =>
+    if (isAllAgents) {
+      return agents.flatMap((agent) =>
+        agent.loadList.map((a) =>
+          buildMeterDetail(a, 'load', viewDate, isViewingToday, lastUpdated, refreshSeq, {
+            agentId: agent.id,
+            agentName: agent.name,
+          })
+        )
+      );
+    }
+    if (!viewScope) return [];
+    return viewScope.loadList.map((a) =>
       buildMeterDetail(a, 'load', viewDate, isViewingToday, lastUpdated, refreshSeq)
     );
-  }, [selectedAgent, viewDate, isViewingToday, lastUpdated, refreshSeq]);
+  }, [agents, viewScope, isAllAgents, viewDate, isViewingToday, lastUpdated, refreshSeq]);
 
   const filterMeters = (list: MeterDetail[]) => {
     const q = search.trim().toLowerCase();
@@ -242,7 +300,8 @@ export default function DashboardRealTimeAmiPower() {
       (m) =>
         m.meterNo.toLowerCase().includes(q) ||
         m.siteName.toLowerCase().includes(q) ||
-        m.no.toLowerCase().includes(q)
+        m.no.toLowerCase().includes(q) ||
+        (m.agentName?.toLowerCase().includes(q) ?? false)
     );
   };
 
@@ -257,20 +316,48 @@ export default function DashboardRealTimeAmiPower() {
   const refDate = useMemo(() => parseLocalDate(viewDate), [viewDate]);
   const holiday = isWeekend(refDate);
 
+  const genAssetAgentMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (isAllAgents) {
+      for (const agent of agents) {
+        for (const asset of agent.genList) {
+          map.set(asset.id, agent.id);
+        }
+      }
+    }
+    return map;
+  }, [agents, isAllAgents]);
+
+  const loadAssetAgentMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (isAllAgents) {
+      for (const agent of agents) {
+        for (const asset of agent.loadList) {
+          map.set(asset.id, agent.id);
+        }
+      }
+    }
+    return map;
+  }, [agents, isAllAgents]);
+
   const genDaily = useMemo(
     () =>
-      selectedAgent
-        ? buildDailySeries('generation', selectedAgent.genList, viewDate, isViewingToday, lastUpdated, refreshSeq)
+      viewScope
+        ? buildDailySeries('generation', viewScope.genList, viewDate, isViewingToday, lastUpdated, refreshSeq, {
+            agentIdForAsset: (asset) => genAssetAgentMap.get(asset.id),
+          })
         : [],
-    [selectedAgent, viewDate, isViewingToday, lastUpdated, refreshSeq]
+    [viewScope, viewDate, isViewingToday, lastUpdated, refreshSeq, genAssetAgentMap]
   );
 
   const loadDaily = useMemo(
     () =>
-      selectedAgent
-        ? buildDailySeries('load', selectedAgent.loadList, viewDate, isViewingToday, lastUpdated, refreshSeq)
+      viewScope
+        ? buildDailySeries('load', viewScope.loadList, viewDate, isViewingToday, lastUpdated, refreshSeq, {
+            agentIdForAsset: (asset) => loadAssetAgentMap.get(asset.id),
+          })
         : [],
-    [selectedAgent, viewDate, isViewingToday, lastUpdated, refreshSeq]
+    [viewScope, viewDate, isViewingToday, lastUpdated, refreshSeq, loadAssetAgentMap]
   );
 
   const chartDateLabel = viewDate.replace(/-/g, '/');
@@ -312,43 +399,46 @@ export default function DashboardRealTimeAmiPower() {
   };
 
   const handleDownloadHistory = (kind: MeterKind) => {
-    if (!selectedAgent) return;
-    const assets = kind === 'generation' ? selectedAgent.genList : selectedAgent.loadList;
+    if (!viewScope || agents.length === 0) return;
     const prefix = kind === 'generation' ? L.csvGen : L.csvLoad;
-    const rows: (string | number)[][] = [];
-    const day = parseLocalDate(viewDate);
-    const dayStr = viewDate;
-    const end = isViewingToday
-      ? new Date(lastUpdated.getTime() - AMI_LAG_HOURS * 60 * 60 * 1000)
-      : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
 
-    for (const asset of assets) {
-      const meterNo = asset.meterNo ?? asset.no;
-      for (let h = 0; h < 24; h++) {
-        const ts = `${dayStr} ${String(h).padStart(2, '0')}:00`;
-        const ref = buildDailySeries(kind, [asset], viewDate, isViewingToday, lastUpdated, refreshSeq)[h]?.reference ?? 0;
-        const inSystem = new Date(`${dayStr}T${String(h).padStart(2, '0')}:00:00`) <= end;
-        rows.push([
-          selectedAgent.name,
-          meterNo,
-          asset.name,
-          ts,
-          inSystem ? Math.round(ref * (0.9 + hashToUnit(`${meterNo}:${h}`, refreshSeq) * 0.2) * 10) / 10 : '',
-          inSystem ? L.csvAuth : L.csvPending,
-        ]);
-      }
-    }
+    const rows = isAllAgents
+      ? agents.flatMap((agent) => {
+          const assets = kind === 'generation' ? agent.genList : agent.loadList;
+          return buildHistoryCsvRows(
+            agent.name,
+            assets,
+            kind,
+            viewDate,
+            isViewingToday,
+            lastUpdated,
+            refreshSeq,
+            L.csvAuth,
+            L.csvPending,
+            { agentId: agent.id }
+          );
+        })
+      : buildHistoryCsvRows(
+          viewScope.name,
+          kind === 'generation' ? viewScope.genList : viewScope.loadList,
+          kind,
+          viewDate,
+          isViewingToday,
+          lastUpdated,
+          refreshSeq,
+          L.csvAuth,
+          L.csvPending
+        );
 
-    downloadCsv(
-      `${selectedAgent.name}_${prefix}_AMI_${viewDate}.csv`,
-      [...L.csvHeaders],
-      rows
-    );
+    const fileAgent = isAllAgents ? L.allAgents : viewScope.name;
+    downloadCsv(`${fileAgent}_${prefix}_AMI_15m_${viewDate}.csv`, [...L.csvHeaders], rows);
   };
 
-  if (!selectedAgent) {
+  if (!viewScope || agents.length === 0) {
     return <p className="text-slate-600">{L.noAgent}</p>;
   }
+
+  const apiAgentSegment = isAllAgents ? 'all' : String(viewScope.id);
 
   const dayType = holiday ? L.trendHoliday : L.trendWeekday;
 
@@ -376,6 +466,7 @@ export default function DashboardRealTimeAmiPower() {
                   <SelectValue placeholder={L.selectAgent} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={ALL_AGENTS_ID}>{L.allAgents}</SelectItem>
                   {agents.map((a) => (
                     <SelectItem key={a.id} value={String(a.id)}>
                       {a.name}
@@ -453,7 +544,7 @@ export default function DashboardRealTimeAmiPower() {
                 : L.ingestHistory}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              {L.ingestDetail} {ingestion.genReceived}/{ingestion.genTotal} | {L.load}{' '}
+              {L.ingestDetail} {ingestion.genReceived}/{ingestion.genTotal} | {L.ingestLoadDetail}{' '}
               {ingestion.loadReceived}/{ingestion.loadTotal}
             </p>
           </div>
@@ -467,15 +558,16 @@ export default function DashboardRealTimeAmiPower() {
           <p>
             <span className="font-semibold">{L.apiRealtime}</span>
             <code className="ml-1 rounded bg-white px-2 py-0.5 text-xs">
-              GET /api/v1/agents/{selectedAgent.id}/ami/realtime
+              GET /api/v1/agents/{apiAgentSegment}/ami/realtime
             </code>
           </p>
           <p>
             <span className="font-semibold">{L.apiHistory}</span>
             <code className="ml-1 rounded bg-white px-2 py-0.5 text-xs">
-              GET /api/v1/agents/{selectedAgent.id}/ami/history?date={viewDate}
+              GET /api/v1/agents/{apiAgentSegment}/ami/history?date={viewDate}
             </code>
           </p>
+          <p className="text-xs text-slate-500">{L.csvIntervalNote}</p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" size="sm" variant="outline" onClick={() => handleDownloadHistory('generation')}>
               <i className="fas fa-download mr-2" />
@@ -501,17 +593,19 @@ export default function DashboardRealTimeAmiPower() {
       <section className="grid gap-4 xl:grid-cols-2">
         <MeterTable
           title={isViewingToday ? L.genLatestTitle : L.genHistoryTitle}
-          subtitle={L.genSubtitle}
+          subtitle={isAllAgents ? L.allAgentsGenSubtitle : L.genSubtitle}
           meters={genFiltered}
           kind="generation"
           isViewingToday={isViewingToday}
+          showAgentColumn={isAllAgents}
         />
         <MeterTable
           title={isViewingToday ? L.loadLatestTitle : L.loadHistoryTitle}
-          subtitle={L.loadSubtitle}
+          subtitle={isAllAgents ? L.allAgentsLoadSubtitle : L.loadSubtitle}
           meters={loadFiltered}
           kind="load"
           isViewingToday={isViewingToday}
+          showAgentColumn={isAllAgents}
         />
       </section>
 
