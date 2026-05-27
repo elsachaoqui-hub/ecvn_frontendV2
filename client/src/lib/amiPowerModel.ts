@@ -1,4 +1,4 @@
-import type { AssetItem } from '@/data/agentAggregation';
+import type { Agent, AssetItem } from '@/data/agentAggregation';
 
 export const AMI_LAG_HOURS = 6;
 export const SLOTS_PER_DAY = 96;
@@ -305,6 +305,17 @@ export function buildSlotKwh(
   const seed = slotSeed(asset, kind, viewDate, slot);
   const noise = 0.97 + hashToUnit(`${seed}:noise`) * 0.06;
   return roundKwh(asset.capacityKw * cf * SLOT_HOURS * noise);
+}
+
+/** 代理人旗下所有發電或用電 AMI 表於同一 15 分鐘區間之加總 kWh（與 2.3 模擬一致） */
+export function sumAgentSlotKwh(agent: Agent, kind: MeterKind, viewDate: string, slot: number): number {
+  const assets = kind === 'generation' ? agent.genList : agent.loadList;
+  if (assets.length === 0) return 0;
+  return roundKwh(assets.reduce((sum, asset) => sum + buildSlotKwh(asset, kind, viewDate, slot), 0));
+}
+
+export function kwhToMwh(kwh: number): number {
+  return Math.round((kwh / 1000) * 10) / 10;
 }
 
 export function buildMeterDetail(

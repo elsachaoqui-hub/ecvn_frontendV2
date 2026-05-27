@@ -76,7 +76,9 @@ export default function Header() {
                       ? '5.2 月結算'
                       : currentView === 'monitoring-market-dashboard'
                         ? '6.2 市場監控儀表板'
-                        : registrationScreen === 'overview'
+                        : currentView === 'notification-center'
+                          ? '7.1 通知'
+                          : registrationScreen === 'overview'
                         ? '註冊申請總覽'
                         : getStepTitle(step);
 

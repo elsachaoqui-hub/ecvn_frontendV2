@@ -84,7 +84,7 @@ const navModules: ModuleItem[] = [
     icon: 'fas fa-cog',
     label: '7. 其他作業',
     subItems: [
-      { id: 'oth-7-1', label: '7.1 通知' },
+      { id: 'oth-7-1', label: '7.1 通知', view: 'notification-center' },
       { id: 'oth-7-2', label: '7.2 系統管理' },
       { id: 'oth-7-3', label: '7.3 網站管理' },
     ],

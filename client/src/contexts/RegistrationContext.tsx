@@ -23,7 +23,8 @@ export type AppMainView =
   | 'settlement-monthly'
   | 'checking-daily'
   | 'checking-monthly'
-  | 'monitoring-market-dashboard';
+  | 'monitoring-market-dashboard'
+  | 'notification-center';
 
 interface RegistrationState {
   // UI 狀態

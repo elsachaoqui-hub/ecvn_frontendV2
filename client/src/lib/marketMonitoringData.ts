@@ -1,4 +1,10 @@
 import { AGENTS, type Agent } from '@/data/agentAggregation';
+import {
+  SLOTS_PER_DAY,
+  kwhToMwh,
+  slotLabel,
+  sumAgentSlotKwh,
+} from '@/lib/amiPowerModel';
 
 export const ALL_AGENTS_ID = '__all__';
 
@@ -140,13 +146,6 @@ export function formatQuerySummary(query: DateQueryState): string {
   return `${agentPart} · ${datePart}`;
 }
 
-function slotLabel(slot: number): string {
-  const totalMin = slot * 15;
-  const h = Math.floor(totalMin / 60) % 24;
-  const m = totalMin % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 const SITE_NAMES = ['太陽能案場 A', '風力案場 B', '屋頂光電 C', '離岸風機 D'];
 const ALERT_KINDS = ['通訊逾時', '數值跳變', '量測缺漏', '功率因數異常'];
 
@@ -278,25 +277,41 @@ function imbalanceNote(
     : `結算用電量＞合約轉供量，超額買量 ${imbalanceMWh?.toFixed(1)} MWh，具平衡義務（納入預測準確度動態檢核）`;
 }
 
-function buildSlotImbalanceRow(
+/** 申報計畫：合約轉供量 = min(發電量, 用電量)；結算量與 2.3 AMI 區間加總一致 */
+function slotMarketVolumes(
+  sellerAgent: Agent,
+  buyerAgent: Agent,
+  dateKey: string,
+  slot: number
+): { genKwh: number; loadKwh: number; commitmentMWh: number; settledGenMWh: number; settledLoadMWh: number } {
+  const genKwh = sumAgentSlotKwh(sellerAgent, 'generation', dateKey, slot);
+  const loadKwh = sumAgentSlotKwh(buyerAgent, 'load', dateKey, slot);
+  const commitmentMWh = kwhToMwh(Math.min(genKwh, loadKwh));
+  return {
+    genKwh,
+    loadKwh,
+    commitmentMWh,
+    settledGenMWh: kwhToMwh(genKwh),
+    settledLoadMWh: kwhToMwh(loadKwh),
+  };
+}
+
+function buildRoleImbalanceRow(
   dateKey: string,
   slot: number,
   role: '賣方' | '買方',
-  agentId: number
+  agentId: number,
+  commitmentMWh: number,
+  settledMWh: number,
+  settledLabel: '結算發電量' | '結算用電量'
 ): MarketImbalanceRow {
-  const seed = `${dateKey}:${slot}:${role}:${agentId}`;
-  const commitmentMWh = Math.round((0.8 + hashUnit(`${seed}:c`) * 2.2) * 10) / 10;
-  const settledBase = commitmentMWh * (0.88 + hashUnit(`${seed}:s`) * 0.22);
-  const isSeller = role === '賣方';
-  const settledMWh = Math.round(settledBase * 10) / 10;
-
   let imbalanceMWh: number | null = null;
   let hasObligation = false;
-  if (isSeller && settledMWh < commitmentMWh) {
+  if (role === '賣方' && settledMWh < commitmentMWh) {
     imbalanceMWh = Math.round((commitmentMWh - settledMWh) * 10) / 10;
     hasObligation = true;
   }
-  if (!isSeller && settledMWh > commitmentMWh) {
+  if (role === '買方' && settledMWh > commitmentMWh) {
     imbalanceMWh = Math.round((settledMWh - commitmentMWh) * 10) / 10;
     hasObligation = true;
   }
@@ -309,38 +324,62 @@ function buildSlotImbalanceRow(
     agentId,
     commitmentMWh,
     settledMWh,
-    settledLabel: isSeller ? '結算發電量' : '結算用電量',
+    settledLabel,
     imbalanceMWh,
     hasObligation,
     note: imbalanceNote(role, hasObligation, imbalanceMWh),
   };
 }
 
-function imbalanceAgentPairs(agentIdFilter: string): number[] {
+function resolveMarketPairs(agentIdFilter: string): { seller: Agent; buyer: Agent }[] {
   const scoped = resolveScopedAgents(agentIdFilter);
-  if (scoped.length === 1) return [scoped[0].id];
-  if (scoped.length >= 2) return [scoped[0].id, scoped[1].id];
-  return [];
+  if (scoped.length === 1) {
+    return [{ seller: scoped[0], buyer: scoped[0] }];
+  }
+  const pairs: { seller: Agent; buyer: Agent }[] = [
+    { seller: scoped[0], buyer: scoped[1] ?? scoped[0] },
+  ];
+  for (let i = 2; i < scoped.length; i++) {
+    pairs.push({ seller: scoped[i], buyer: scoped[i] });
+  }
+  return pairs;
+}
+
+function imbalanceAgentIds(agentIdFilter: string): number[] {
+  const ids = new Set<number>();
+  for (const { seller, buyer } of resolveMarketPairs(agentIdFilter)) {
+    ids.add(seller.id);
+    ids.add(buyer.id);
+  }
+  return [...ids];
 }
 
 /** 單日 15 分鐘明細 */
 export function buildImbalanceSlotRows(dateKey: string, agentIdFilter = ALL_AGENTS_ID): MarketImbalanceRow[] {
   const rows: MarketImbalanceRow[] = [];
-  const scoped = resolveScopedAgents(agentIdFilter);
-  const pairs =
-    scoped.length === 1
-      ? [{ seller: scoped[0].id, buyer: scoped[0].id }]
-      : [
-          { seller: scoped[0].id, buyer: scoped[1]?.id ?? scoped[0].id },
-          ...(scoped.length > 2
-            ? scoped.slice(2).map((a) => ({ seller: a.id, buyer: a.id }))
-            : []),
-        ];
-
-  for (const { seller, buyer } of pairs) {
-    for (let slot = 0; slot < 96; slot++) {
-      rows.push(buildSlotImbalanceRow(dateKey, slot, '賣方', seller));
-      rows.push(buildSlotImbalanceRow(dateKey, slot, '買方', buyer));
+  for (const { seller, buyer } of resolveMarketPairs(agentIdFilter)) {
+    for (let slot = 0; slot < SLOTS_PER_DAY; slot++) {
+      const vol = slotMarketVolumes(seller, buyer, dateKey, slot);
+      rows.push(
+        buildRoleImbalanceRow(
+          dateKey,
+          slot,
+          '賣方',
+          seller.id,
+          vol.commitmentMWh,
+          vol.settledGenMWh,
+          '結算發電量',
+        ),
+        buildRoleImbalanceRow(
+          dateKey,
+          slot,
+          '買方',
+          buyer.id,
+          vol.commitmentMWh,
+          vol.settledLoadMWh,
+          '結算用電量',
+        ),
+      );
     }
   }
   return rows;
@@ -349,7 +388,7 @@ export function buildImbalanceSlotRows(dateKey: string, agentIdFilter = ALL_AGEN
 /** 每日彙總列（點選日期可下鑽至 15 分鐘） */
 export function buildImbalanceDailyRows(dateKeys: string[], agentIdFilter = ALL_AGENTS_ID): MarketImbalanceRow[] {
   const rows: MarketImbalanceRow[] = [];
-  const agentIds = imbalanceAgentPairs(agentIdFilter);
+  const agentIds = imbalanceAgentIds(agentIdFilter);
   for (const dateKey of dateKeys) {
     const slotRows = buildImbalanceSlotRows(dateKey, agentIdFilter);
     for (const role of ['賣方', '買方'] as const) {

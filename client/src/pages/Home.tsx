@@ -18,6 +18,7 @@ import MarketMonitoringDashboardPage from '@/components/MarketMonitoringDashboar
 import RegistrationOverview from '@/components/RegistrationOverview';
 import DailyCheckingPage from '@/components/DailyCheckingPage';
 import MonthlyCheckingPage from '@/components/MonthlyCheckingPage';
+import NotificationPage from '@/components/NotificationPage';
 
 function MainContent() {
   const { step, currentView, registrationScreen } = useRegistration();
@@ -51,6 +52,7 @@ function MainContent() {
           {currentView === 'settlement-pre' && <SettlementPreSettlementPage />}
           {currentView === 'settlement-monthly' && <SettlementMonthlyPage />}
           {currentView === 'monitoring-market-dashboard' && <MarketMonitoringDashboardPage />}
+          {currentView === 'notification-center' && <NotificationPage />}
         </main>
       </div>
 
